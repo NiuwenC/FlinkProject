@@ -39,16 +39,16 @@ object FlinkTimeStampDemo {
     val waterSteam: DataStream[(String,Long)] =data.assignTimestampsAndWatermarks(new AssignerWithPeriodicWatermarks[(String, Long)] {
       //事件时间
       var currentMaxTImestamp = 0L
-      val maxOutoutOrderness = 3000L
+      val maxOutoutOrderness = 10000L
       var lastEmittedWatermark: Long = Long.MinValue
 
       //返回当前的水印
       override def getCurrentWatermark: Watermark = {
         //允许延迟3秒
-        val potentialWM = currentMaxTImestamp - maxOutoutOrderness
+        val allowDelay = currentMaxTImestamp - maxOutoutOrderness
         // 保证水印依次递增
-        if(potentialWM >= lastEmittedWatermark){
-          lastEmittedWatermark = potentialWM
+        if(allowDelay >= lastEmittedWatermark){
+          lastEmittedWatermark = allowDelay
         }
         new Watermark(lastEmittedWatermark)
       }
@@ -65,6 +65,39 @@ object FlinkTimeStampDemo {
         time
       }
     })
+
+
+//    val waterSteam: DataStream[(String,Long)] =data.assignTimestampsAndWatermarks(new AssignerWithPeriodicWatermarks[(String, Long)] {
+//      //事件时间
+//      var currentMaxTImestamp = 0L
+//      val maxOutoutOrderness = 0L
+//      var lastEmittedWatermark: Long = Long.MinValue
+//
+//      //返回当前的水印
+//      override def getCurrentWatermark: Watermark = {
+//        //允许延迟3秒
+//        val allowDelay = currentMaxTImestamp - maxOutoutOrderness
+//        // 保证水印依次递增
+//        if(allowDelay >= lastEmittedWatermark){
+//          lastEmittedWatermark = allowDelay
+//        }
+//        new Watermark(lastEmittedWatermark)
+//      }
+//
+//      //分配一个时间戳给一个元素
+//      override def extractTimestamp(element: (String, Long), previousElementTimeStamp: Long): Long = {
+//        val time = element._2
+//        if(time > currentMaxTImestamp){
+//          currentMaxTImestamp = time
+//        }
+//        val outData = String.format("key: %s EventTime:%s waterMark:%s",
+//          element._1,sdf.format(time),sdf.format(getCurrentWatermark.getTimestamp))
+//        println(outData)
+//        time
+//      }
+//    })
+
+
 
     val result:DataStream[String] = waterSteam.keyBy(0)
       .window(TumblingEventTimeWindows.of(Time.seconds(5L))) //5s宽度的基于事件时间的翻转窗口
